@@ -1,0 +1,42 @@
+name: Validate CVBI Registry
+
+on:
+  pull_request:
+    paths:
+      - "cvbi-registry/**"
+      - ".cvbiignore"
+      - "tools/registry/**"
+      - ".github/workflows/validate.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate Registry
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.x"
+
+      - name: Restore CVBI hash cache
+        uses: actions/cache@v4
+        with:
+          path: .cvbi-cache
+          key: cvbi-sha256-${{ github.repository }}-${{ github.ref_name }}
+          restore-keys: |
+            cvbi-sha256-${{ github.repository }}-
+
+      - name: Validate CVBI registry
+        env:
+          MAX_CVBI_SIZE: "10737418240"
+        working-directory: .
+        run: |
+          cd tools/registry
+          python3 validate.py

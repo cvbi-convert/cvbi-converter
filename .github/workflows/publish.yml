@@ -1,0 +1,75 @@
+name: Publish CVBI Registry
+
+on:
+  workflow_run:
+    workflows:
+      - "Test CVBI Converter"
+    types:
+      - completed
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Build and Publish cvbi.conv
+    runs-on: ubuntu-latest
+
+    # Publish ONLY when:
+    # 1. test.yml succeeded
+    # 2. test.yml was triggered by a push
+    if: >
+      github.event.workflow_run.conclusion == 'success'
+      &&
+      github.event.workflow_run.event == 'push'
+
+    steps:
+      - name: Checkout tested commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.x"
+
+      - name: Check Python syntax
+        run: |
+          python -m py_compile \
+            tools/registry/validate.py \
+            tools/registry/validate_cvbi.py \
+            tools/package.py
+
+      - name: Validate registry again
+        run: |
+          python3 tools/registry/validate.py cvbi-registry
+
+      - name: Build cvbi.conv
+        run: |
+          python3 tools/package.py \
+            cvbi-registry \
+            cvbi.conv
+
+      - name: Verify generated archive
+        run: |
+          test -f cvbi.conv
+          unzip -t cvbi.conv
+
+      - name: Show archive information
+        run: |
+          ls -lh cvbi.conv
+          unzip -l cvbi.conv
+
+      - name: Generate release tag
+        id: release
+        run: |
+          echo "tag=cvbi-$(date -u +'%Y.%m.%d.%H%M%S')" >> "$GITHUB_OUTPUT"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release.outputs.tag }}
+          name: CVBI Registry ${{ steps.release.outputs.tag }}
+          files: cvbi.conv
+          generate_release_notes: true

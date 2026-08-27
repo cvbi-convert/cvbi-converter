@@ -1,0 +1,53 @@
+name: Test CVBI Converter
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "cvbi-registry/**"
+      - "tools/**"
+      - "tests/**"
+      - ".github/workflows/test.yml"
+
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "cvbi-registry/**"
+      - "tools/**"
+      - "tests/**"
+      - ".github/workflows/test.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Validate CVBI Registry
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.x"
+
+      - name: Check Python syntax
+        run: |
+          python -m py_compile \
+            tools/registry/validate.py \
+            tools/registry/validate_cvbi.py \
+            tools/package.py \
+            tests/test_validate.py
+
+      - name: Run test suite
+        run: |
+          python3 tests/test_validate.py
+
+      - name: Validate CVBI registry
+        run: |
+          python3 tools/registry/validate.py cvbi-registry
